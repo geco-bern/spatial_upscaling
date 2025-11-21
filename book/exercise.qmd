@@ -36,18 +36,22 @@ coast <- rnaturalearth::ne_coastline(scale = 110, returnclass = "sf")
 ggplot() +
 
   # plot coastline
-  geom_sf(data = coast,
-          colour = 'black',
-          size = 0.2) +
+  geom_sf(
+    data = coast,
+    colour = "black",
+    size = 0.2
+  ) +
 
   # set extent in longitude and latitude
   coord_sf(
     ylim = c(-60, 80),
-    expand = FALSE) +  # to draw map strictly bounded by the specified extent
-  
+    expand = FALSE
+  ) + # to draw map strictly bounded by the specified extent
+
   # plot points on map
   geom_point(data = dfs, aes(x = lon, y = lat), color = "red", size = 0.2) +
   labs(x = "", y = "") +
+  theme_bw() +
   theme(legend.position = "bottom")
 ```
 ```{r echo=FALSE, eval=FALSE}
@@ -57,7 +61,7 @@ ggsave(here::here("book/images/map_sites.png"), width = 8, height = 4)
 ```{r echo=FALSE, fig.height=12}
 #| label: fig-map-points
 #| fig-cap: "Locations of data points."
-knitr::include_graphics("images/map_sites.png")
+knitr::include_graphics(here::here("book/images/map_sites.png"))
 ```
 
 1. What do you observe? Discuss the potential implications of the geographical distribution of data points for spatial upscaling.
@@ -78,48 +82,51 @@ An example for how to use k-means is given in the [tutorial on land cover classi
 Using a pre-defined grouping for delineating the folds in k-fold cross-validation can be done by first determining the indexes of rows for each group (a list of vectors that contain the row indexes of the training data). This can be done by:
 ```{r eval=FALSE}
 # create folds based on clusters
-# assuming 'df' contains the data and a column called 'cluster' containing the 
+# assuming 'df' contains the data and a column called 'cluster' containing the
 # result of the k-means clustering
+# For demo, we randomly allocate each observation into one of five clusters.
+df_demo <- dfs
+df_demo$cluster <- sample(1:5, nrow(df_demo), replace = TRUE)
+
 group_folds_train <- purrr::map(
-  seq(length(unique(df$cluster))),
+  seq(length(unique(df_demo$cluster))),
   ~ {
-    df |> 
-      select(cluster) |> 
-      mutate(idx = 1:n()) |> 
-      filter(cluster != .) |> 
+    df_demo |>
+      select(cluster) |>
+      mutate(idx = 1:n()) |>
+      filter(cluster != .) |>
       pull(idx)
   }
 )
 
 group_folds_test <- purrr::map(
-  seq(length(unique(df$cluster))),
+  seq(length(unique(df_demo$cluster))),
   ~ {
-    df |> 
-      select(cluster) |> 
-      mutate(idx = 1:n()) |> 
-      filter(cluster == .) |> 
+    df_demo |>
+      select(cluster) |>
+      mutate(idx = 1:n()) |>
+      filter(cluster == .) |>
       pull(idx)
   }
 )
 ```
 Then, implement the custom cross-validation "by hand". Code could look like this (But note that this is just for demo, and the code will not run without an error if you simply copy-and-paste. Complement in `...` with your code):
 ```{r eval=FALSE}
-# create a function that trains a random forest model on a given set of rows and 
+# create a function that trains a random forest model on a given set of rows and
 # predicts on a disjunct set of rows
-train_test_by_fold <- function(df, idx_train, idx_val){
-  
+train_test_by_fold <- function(df, idx_train, idx_val) {
   mod <- ranger::ranger(
-    x =  ...,  # data frame with columns corresponding to predictors
-    y =  ...   # a vector of the target values (not a data frame!)
+    x =  ..., # data frame with columns corresponding to predictors
+    y =  ... # a vector of the target values (not a data frame!)
   )
-  
-  pred <- predict(...,       # the fitted model object 
-                  data = ... # a data frame with columns corresponding to predictors
-                  )
 
-  rsq <- ...  # the R-squared determined on the validation set
+  pred <- predict(..., # the fitted model object
+    data = ... # a data frame with columns corresponding to predictors
+  )
+
+  rsq <- ... # the R-squared determined on the validation set
   rmse <- ... # the root mean square error on the validation set
-  
+
   return(tibble(rsq = rsq, rmse = rmse))
 }
 
@@ -128,8 +135,8 @@ train_test_by_fold <- function(df, idx_train, idx_val){
 out <- purrr::map2_dfr(
   group_folds_train,
   group_folds_test,
-  ~train_test_by_fold(.x, .y)
-) |> 
+  ~ train_test_by_fold(.x, .y)
+) |>
   mutate(test_fold = 1:5)
 ```
 :::
@@ -174,4 +181,3 @@ This is approximate because the k-means clustering contains a random element.
 # 5 0.469  3.55         5
 ```
 :::
-
